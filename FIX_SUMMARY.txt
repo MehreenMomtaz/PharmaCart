@@ -1,0 +1,25 @@
+PharmaCart repaired build - MongoDB Atlas ready
+
+Main fixes:
+- MongoDB Atlas connection now uses MONGODB_DB_NAME=pharmacart and gives clearer setup errors.
+- Added npm run check to test .env + Atlas before starting the app.
+- Removed bcrypt / node-pre-gyp native dependency chain that caused install-script/audit trouble.
+- Replaced password hashing with Node.js built-in scrypt.
+- Removed Zod and Cloudinary requirements so the basic project has fewer external setup points.
+- Fixed authentication cookie settings, login/signup validation, session error handling and profile image update.
+- Added optional npm run seed:admin for creating an admin account from .env.
+- Fixed frontend BrowserRouter import and centralized user/admin route protection.
+- Fixed frontend runtime/lint problems, including conditional hooks and unsafe error access.
+- Fixed blog published filtering and publish date handling.
+- Improved medicine inventory consistency.
+- Added server-side validation/calculation for the local demo order workflow.
+- Seed data uses the pharmacart Atlas database and non-expired demo dates.
+- Added RUN_PROJECT_STEP_BY_STEP.md with Windows PowerShell instructions.
+- node_modules removed from the final ZIP; run npm install separately in backend and frontend.
+
+Validation performed before packaging:
+- All backend JS files: node --check PASS
+- Frontend ESLint: PASS
+- All frontend JS/JSX: Babel parser PASS
+
+Atlas credentials/network access are account-side settings and cannot be embedded/fixed by application code. Add your current IP in Atlas Network Access before npm run check.
