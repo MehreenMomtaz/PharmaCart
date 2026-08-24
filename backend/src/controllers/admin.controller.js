@@ -1,6 +1,8 @@
 import Medicine from "../models/medicine.model.js";
 import Order from "../models/order.model.js";
 import User from "../models/user.model.js";
+import Review from '../models/review.model.js';
+import Blog from '../models/blog.model.js';
 
 // Medicine Management
 export const getAllMedicines = async (req, res) => {
@@ -117,6 +119,26 @@ export const getAllOrders = async (req, res) => {
     }
 };
 
+export const getCustomers = async (req, res) => {
+    try {
+        const customers = await User.aggregate([
+            { $match: { role: 'user' } },
+            { $lookup: { from: 'orders', localField: '_id', foreignField: 'userId', as: 'orders' } },
+            { $project: {
+                fullName: 1, email: 1, profilePic: 1, createdAt: 1,
+                orderCount: { $size: '$orders' },
+                totalSpent: { $sum: { $map: { input: '$orders', as: 'order', in: { $cond: [{ $ne: ['$$order.status', 'cancelled'] }, '$$order.total', 0] } } } },
+                lastOrderAt: { $max: '$orders.createdAt' }
+            } },
+            { $sort: { createdAt: -1 } }
+        ]);
+        return res.status(200).json(customers);
+    } catch (error) {
+        console.log('Error in getCustomers controller:', error.message);
+        return res.status(500).json({ message: 'Server error' });
+    }
+};
+
 export const getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -141,16 +163,25 @@ export const updateOrderStatus = async (req, res) => {
         const { id } = req.params;
         const { status, notes } = req.body;
 
-        const order = await Order.findByIdAndUpdate(
-            id,
-            { status, notes },
-            { new: true }
-        ).populate('userId', 'fullName email');
-
+        const order = await Order.findById(id);
         if (!order) {
             return res.status(404).json({ message: "Order not found" });
         }
-
+        const allowedTransitions = {
+            confirmed: ['processing'],
+            processing: ['with_delivery_partner'],
+            with_delivery_partner: ['out_for_delivery'],
+            return_requested: ['returned'],
+            refund_requested: ['refunded']
+        };
+        if (!allowedTransitions[order.status]?.includes(status)) {
+            return res.status(409).json({ message: `Order cannot move from ${order.status} to ${status}. Completed steps cannot be undone.` });
+        }
+        order.status = status;
+        order.notes = notes || order.notes;
+        order.statusHistory.push({ status, changedBy: req.user._id, actorRole: 'admin', note: notes });
+        await order.save();
+        await order.populate('userId', 'fullName email');
         res.status(200).json(order);
     } catch (error) {
         console.log("Error in updateOrderStatus controller:", error.message);
@@ -256,7 +287,9 @@ export const getDashboardStats = async (req, res) => {
         const paidOrderMatch = { ...dateMatch, status: { $ne: 'cancelled' }, $or: [{ 'paymentDetails.method': 'cod' }, { 'paymentDetails.status': 'completed' }] };
         const totalMedicines = await Medicine.countDocuments();
         const totalOrders = await Order.countDocuments();
-        const totalUsers = await User.countDocuments({ role: 'user' });
+        const [totalUsers, totalReviews, totalBlogs] = await Promise.all([
+            User.countDocuments({ role: 'user' }), Review.countDocuments(), Blog.countDocuments()
+        ]);
 
         const recentOrders = await Order.find({})
             .populate('userId', 'fullName email')
@@ -356,7 +389,9 @@ export const getDashboardStats = async (req, res) => {
             stats: {
                 totalMedicines,
                 totalOrders,
-                totalUsers
+                totalUsers,
+                totalReviews,
+                totalBlogs
             },
             recentOrders,
             lowStockMedicines,

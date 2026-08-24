@@ -1,5 +1,6 @@
 import Order from "../models/order.model.js";
 import Medicine from "../models/medicine.model.js";
+import Review from '../models/review.model.js';
 
 const TAX_RATE = 0.15;
 const allowedPaymentMethods = new Set(["sslcommerz", "bkash", "cod"]);
@@ -78,10 +79,11 @@ export const createOrder = async (req, res) => {
       subtotal,
       tax,
       total,
-      status: method === "sslcommerz" ? "confirmed" : "processing",
+      status: method === "sslcommerz" ? "confirmed" : "delivered",
       isApproved: true,
       approvedAt: new Date(),
-      notes: method === "bkash" ? "Paid through the local bKash demo sandbox" : "Automatically confirmed and sent for processing",
+      notes: method === "sslcommerz" ? "Waiting for online payment" : "Order completed automatically",
+      statusHistory: [{ status: method === 'sslcommerz' ? 'confirmed' : 'delivered', changedBy: req.user._id, actorRole: 'system', note: method === 'sslcommerz' ? 'Waiting for payment' : 'Order completed' }],
     });
 
     for (const item of normalizedItems) {
@@ -172,8 +174,9 @@ export const sslCommerzSuccess = async (req, res) => {
     if (!valid) return res.redirect(clientPaymentUrl("failed", orderId));
     order.paymentDetails.status = "completed";
     order.paymentDetails.transactionId = transactionId;
-    order.status = "processing";
-    order.notes = "Payment verified by SSLCOMMERZ and automatically sent for processing";
+    order.status = "delivered";
+    order.notes = "Payment verified and order completed";
+    order.statusHistory.push({ status: 'delivered', actorRole: 'system', note: 'Online payment completed' });
     await order.save();
     return res.redirect(clientPaymentUrl("success", orderId));
   } catch (error) {
@@ -195,8 +198,13 @@ export const sslCommerzIpn = async (req, res) => {
 
 export const getUserOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ userId: req.user._id }).sort({ createdAt: -1 });
-    return res.status(200).json(orders);
+    const orders = await Order.find({ userId: req.user._id }).sort({ createdAt: -1 }).lean();
+    const reviews = await Review.find({ userId: req.user._id }).lean();
+    const reviewMap = new Map(reviews.map((review) => [String(review.medicineId), review]));
+    return res.status(200).json(orders.map((order) => ({
+      ...order,
+      items: order.items.map((item) => ({ ...item, review: reviewMap.get(String(item.medicineId)) || null }))
+    })));
   } catch (error) {
     console.error("Error in getUserOrders controller:", error.message);
     return res.status(500).json({ message: "Server error" });
@@ -211,5 +219,29 @@ export const getOrderById = async (req, res) => {
   } catch (error) {
     console.error("Error in getOrderById controller:", error.message);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const customerTransitions = {
+  out_for_delivery: new Set(['delivered', 'return_requested']),
+  delivered: new Set(['return_requested']),
+  returned: new Set(['refund_requested'])
+};
+
+export const updateCustomerOrderStatus = async (req, res) => {
+  try {
+    const nextStatus = String(req.body.status || '');
+    const order = await Order.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!customerTransitions[order.status]?.has(nextStatus)) {
+      return res.status(409).json({ message: `Order cannot move from ${order.status} to ${nextStatus}` });
+    }
+    order.status = nextStatus;
+    order.statusHistory.push({ status: nextStatus, changedBy: req.user._id, actorRole: 'user', note: String(req.body.note || '').trim() });
+    await order.save();
+    return res.status(200).json(order);
+  } catch (error) {
+    console.error('Error in updateCustomerOrderStatus controller:', error.message);
+    return res.status(500).json({ message: 'Server error' });
   }
 };

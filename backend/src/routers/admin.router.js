@@ -9,7 +9,8 @@ import {
     getAllOrders,
     getOrderById,
     getDashboardStats,
-    updateInventory
+    updateInventory,
+    getCustomers
 } from "../controllers/admin.controller.js";
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.use(protectRoute, adminRequired);
 
 // Dashboard
 router.get("/dashboard", getDashboardStats);
+router.get("/customers", getCustomers);
 
 // Medicine Management
 router.get("/medicines", getAllMedicines);

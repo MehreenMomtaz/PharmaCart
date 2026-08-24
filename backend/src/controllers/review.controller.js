@@ -8,6 +8,15 @@ export const createReview = async (req, res) => {
     try {
         const { medicineId, rating, review } = req.body;
         const userId = req.user._id;
+        const normalizedRating = Number(rating);
+        const normalizedReview = String(review || '').trim();
+        if (!mongoose.isValidObjectId(medicineId)) return res.status(400).json({ message: 'Invalid medicine' });
+        if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+            return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+        }
+        if (normalizedReview.length < 10 || normalizedReview.length > 500) {
+            return res.status(400).json({ message: 'Review must be between 10 and 500 characters' });
+        }
 
         // Check if medicine exists
         const medicine = await Medicine.findById(medicineId);
@@ -25,15 +34,19 @@ export const createReview = async (req, res) => {
         const hasPurchased = await Order.findOne({
             userId,
             'items.medicineId': medicineId,
-            status: { $in: ['delivered', 'confirmed'] }
+            status: { $in: ['delivered', 'return_requested', 'returned', 'refund_requested', 'refunded'] }
         });
+
+        if (!hasPurchased) {
+            return res.status(403).json({ message: 'You can review this medicine after receiving it' });
+        }
 
         const newReview = new Review({
             userId,
             medicineId,
-            rating,
-            review,
-            isVerified: !!hasPurchased
+            rating: normalizedRating,
+            review: normalizedReview,
+            isVerified: true
         });
 
         await newReview.save();
@@ -49,7 +62,7 @@ export const createReview = async (req, res) => {
         res.status(201).json(populatedReview);
     } catch (error) {
         console.log("Error in createReview controller:", error.message);
-        res.status(500).json({ message: "Server error" });
+        res.status(error.code === 11000 ? 409 : 500).json({ message: error.code === 11000 ? 'You have already reviewed this medicine' : 'Server error' });
     }
 };
 
@@ -178,6 +191,28 @@ export const getUserReviews = async (req, res) => {
     } catch (error) {
         console.log("Error in getUserReviews controller:", error.message);
         res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const getReviewEligibility = async (req, res) => {
+    try {
+        const medicineId = req.params.medicineId;
+        const existingReview = await Review.findOne({ userId: req.user._id, medicineId });
+        const deliveredOrder = await Order.findOne({
+            userId: req.user._id,
+            'items.medicineId': medicineId,
+            status: { $in: ['delivered', 'return_requested', 'returned', 'refund_requested', 'refunded'] }
+        }).select('_id orderNumber status');
+        const canReview = Boolean(deliveredOrder && !existingReview);
+        return res.status(200).json({
+            canReview,
+            purchased: Boolean(deliveredOrder),
+            existingReview,
+            reason: existingReview ? 'already_reviewed' : deliveredOrder ? null : 'not_delivered'
+        });
+    } catch (error) {
+        console.log('Error in getReviewEligibility controller:', error.message);
+        return res.status(500).json({ message: 'Server error' });
     }
 };
 

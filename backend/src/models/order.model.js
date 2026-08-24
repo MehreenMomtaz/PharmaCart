@@ -78,9 +78,16 @@ const orderSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+            enum: ['confirmed', 'processing', 'with_delivery_partner', 'out_for_delivery', 'delivered', 'return_requested', 'returned', 'refund_requested', 'refunded', 'cancelled'],
             default: 'processing'
         },
+        statusHistory: [{
+            status: { type: String, required: true },
+            changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            actorRole: { type: String, enum: ['admin', 'user', 'system'], default: 'system' },
+            note: { type: String, trim: true, maxlength: 300 },
+            changedAt: { type: Date, default: Date.now }
+        }],
         isApproved: {
             type: Boolean,
             default: true

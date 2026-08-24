@@ -75,7 +75,7 @@ export const getAllBlogs = async (req, res) => {
         let query = {};
         
         // Only show published blogs for public access
-        if (String(published) !== 'false') {
+        if (!req.adminBlogQuery) {
             query.isPublished = true;
         }
         
@@ -149,6 +149,11 @@ export const getAllBlogs = async (req, res) => {
             message: "Internal server error" 
         });
     }
+};
+
+export const getAllAdminBlogs = (req, res) => {
+    req.adminBlogQuery = true;
+    return getAllBlogs(req, res);
 };
 
 // Get single blog post by ID

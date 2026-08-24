@@ -52,7 +52,8 @@ export const useBlogStore = create((set, get) => ({
                 params.append('published', filters.published);
             }
             
-            const response = await axiosInstance.get(`/blogs?${params.toString()}`);
+            const endpoint = filters.published === 'false' ? '/blogs/admin/all' : '/blogs';
+            const response = await axiosInstance.get(`${endpoint}?${params.toString()}`);
             
             if (response.data.success) {
                 set({ 

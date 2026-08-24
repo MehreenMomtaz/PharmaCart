@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Calendar,
-  Clock,
   CreditCard,
   Eye,
   MapPin,
@@ -28,12 +27,6 @@ const date = (value) =>
     month: "short",
     day: "numeric",
   });
-const statusClass = (status) =>
-  status === "delivered"
-    ? "bg-[#dff8ef] text-[#087558]"
-    : status === "cancelled"
-      ? "bg-red-50 text-red-700"
-      : "bg-[#fff5dc] text-[#94630e]";
 
 const OrderHistory = () => {
   const { authUser } = useAuthStore();
@@ -49,7 +42,6 @@ const OrderHistory = () => {
     clearSelectedOrder,
   } = useOrderStore();
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
   useEffect(() => {
     if (authUser) fetchUserOrders();
   }, [authUser, fetchUserOrders]);
@@ -59,16 +51,16 @@ const OrderHistory = () => {
     paymentNoticeHandled.current = true;
     if (payment === "success") {
       clearCart();
-      toast.success("Sandbox payment verified. Your order is processing.");
+      toast.success(
+        "Payment verified. Your order is done and ready for review.",
+      );
     } else if (payment === "cancelled") toast.error("Payment was cancelled.");
     else toast.error("Payment could not be verified.");
     setSearchParams({}, { replace: true });
   }, [clearCart, searchParams, setSearchParams]);
   if (!authUser) return <Navigate to="/login" replace />;
-  const filtered = orders.filter(
-    (order) =>
-      order.orderNumber.toLowerCase().includes(search.toLowerCase()) &&
-      (status === "all" || order.status === status),
+  const filtered = orders.filter((order) =>
+    order.orderNumber.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -91,7 +83,7 @@ const OrderHistory = () => {
                 Order history
               </h1>
               <p className="mt-3 text-white/60">
-                Track automatically processed PharmaCart orders.
+                View completed orders and review purchased medicines.
               </p>
             </div>
             <span className="rounded-full border border-white/15 px-5 py-3 text-sm text-white/70">
@@ -99,7 +91,7 @@ const OrderHistory = () => {
             </span>
           </div>
         </section>
-        <section className="mb-6 grid gap-3 rounded-[24px] border border-[#e2ebe7] bg-white p-3 md:grid-cols-[1fr_280px]">
+        <section className="mb-6 rounded-[24px] border border-[#e2ebe7] bg-white p-3">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#159a74]" />
             <input
@@ -109,25 +101,6 @@ const OrderHistory = () => {
               className="h-14 w-full rounded-2xl bg-[#f5f8f7] pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#65d6b4]"
             />
           </div>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="h-14 rounded-2xl border border-[#dce7e3] bg-white px-4 text-[#10211b]"
-            style={{ colorScheme: "light" }}
-          >
-            <option value="all">All statuses</option>
-            {[
-              "confirmed",
-              "processing",
-              "shipped",
-              "delivered",
-              "cancelled",
-            ].map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
         </section>
         {isLoadingOrders ? (
           <div className="space-y-3">
@@ -164,11 +137,6 @@ const OrderHistory = () => {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <span
-                      className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${statusClass(order.status)}`}
-                    >
-                      {order.status}
-                    </span>
                     <strong className="text-2xl text-[#073f35]">
                       {money(order.total)}
                     </strong>
@@ -183,12 +151,18 @@ const OrderHistory = () => {
                 </div>
                 <div className="mt-5 flex flex-wrap gap-2 border-t border-[#e2ebe7] pt-4">
                   {order.items.slice(0, 4).map((item, index) => (
-                    <span
+                    <Link
                       key={`${item.name}-${index}`}
+                      to={`/medicine/${item.medicineId}`}
                       className="rounded-full bg-[#f5f8f7] px-3 py-1.5 text-xs text-[#66756f]"
                     >
                       {item.name} × {item.quantity}
-                    </span>
+                      {item.review
+                        ? ` · ★ ${item.review.rating}`
+                        : order.status === "delivered"
+                          ? " · Review"
+                          : ""}
+                    </Link>
                   ))}
                 </div>
               </article>
@@ -277,11 +251,6 @@ const OrderHistory = () => {
                 </div>
               </section>
               <section className="space-y-3">
-                <div className="rounded-2xl bg-[#effbf7] p-4">
-                  <Clock className="size-5 text-[#159a74]" />
-                  <p className="mt-3 text-sm text-[#66756f]">Status</p>
-                  <strong className="capitalize">{selectedOrder.status}</strong>
-                </div>
                 <div className="rounded-2xl bg-[#f5f8f7] p-4">
                   <CreditCard className="size-5 text-[#159a74]" />
                   <p className="mt-3 text-sm text-[#66756f]">Payment</p>

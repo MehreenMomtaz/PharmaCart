@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   Banknote,
+  BookOpen,
   Package,
   ShoppingBag,
   ShoppingCart,
   TrendingUp,
+  Star,
   Users,
   WalletCards,
 } from "lucide-react";
@@ -20,18 +22,17 @@ const money = (value) =>
     maximumFractionDigits: 0,
   }).format(value || 0);
 const number = (value) => new Intl.NumberFormat("en-BD").format(value || 0);
-const statusStyle = (status) =>
-  status === "delivered"
-    ? "bg-[#dff8ef] text-[#087558]"
-    : status === "cancelled"
-      ? "bg-red-50 text-red-700"
-    : "bg-[#fff5dc] text-[#94630e]";
-const visibleStatus = (status) => status === "pending" ? "processing" : status;
 const statusColor = {
   delivered: "#159a74",
   processing: "#65d6b4",
   confirmed: "#276c5d",
   shipped: "#8bbdaf",
+  with_delivery_partner: "#8bbdaf",
+  out_for_delivery: "#e2ad41",
+  return_requested: "#d97706",
+  returned: "#b45309",
+  refund_requested: "#e85d75",
+  refunded: "#8b5cf6",
   cancelled: "#ef6a6a",
 };
 const ranges = [
@@ -427,8 +428,13 @@ const AdminDashboard = () => {
                 ],
                 [
                   "Customers",
-                  "/admin",
+                  "/admin/customers",
                   <Users key="customers" className="size-4 text-[#159a74]" />,
+                ],
+                [
+                  "Health tips & blogs",
+                  "/admin/blogs",
+                  <BookOpen key="blogs" className="size-4 text-[#159a74]" />,
                 ],
               ].map(([label, to, icon]) => (
                 <Link
@@ -444,6 +450,35 @@ const AdminDashboard = () => {
                 </Link>
               ))}
             </nav>
+            <section className="mb-6 grid gap-3 sm:grid-cols-2">
+              {[
+                [
+                  "Published & draft articles",
+                  stats?.totalBlogs,
+                  <BookOpen key="blog-count" className="size-5" />,
+                ],
+                [
+                  "Customer reviews",
+                  stats?.totalReviews,
+                  <Star key="review-count" className="size-5" />,
+                ],
+              ].map(([label, value, icon]) => (
+                <article
+                  key={label}
+                  className="flex items-center gap-4 rounded-[22px] border border-[#e2ebe7] bg-white p-5"
+                >
+                  <span className="grid size-11 place-items-center rounded-full bg-[#effbf7] text-[#159a74]">
+                    {icon}
+                  </span>
+                  <div>
+                    <strong className="block text-2xl text-[#073f35]">
+                      {number(value)}
+                    </strong>
+                    <span className="text-xs text-[#66756f]">{label}</span>
+                  </div>
+                </article>
+              ))}
+            </section>
             <section className="rounded-[28px] border border-[#e2ebe7] bg-white p-5 shadow-[0_18px_50px_rgba(7,63,53,.07)] sm:p-7">
               <div className="mb-6 flex items-center justify-between">
                 <div>
@@ -475,11 +510,6 @@ const AdminDashboard = () => {
                           {money(order.total)}
                         </p>
                       </div>
-                      <span
-                        className={`w-fit rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${statusStyle(visibleStatus(order.status))}`}
-                      >
-                        {visibleStatus(order.status)}
-                      </span>
                     </article>
                   ))
                 ) : (

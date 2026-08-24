@@ -7,7 +7,8 @@ import {
     deleteBlog,
     getBlogCategories,
     getBlogTags,
-    getFeaturedBlogs
+    getFeaturedBlogs,
+    getAllAdminBlogs
 } from "../controllers/blog.controller.js";
 import { protectRoute } from "../middlewares/protectRoute.js";
 import { adminOnly } from "../middlewares/adminOnly.js";
@@ -19,6 +20,7 @@ router.get("/", getAllBlogs);
 router.get("/categories", getBlogCategories);
 router.get("/tags", getBlogTags);
 router.get("/featured", getFeaturedBlogs);
+router.get("/admin/all", protectRoute, adminOnly, getAllAdminBlogs);
 router.get("/:id", getBlogById);
 
 // Admin only routes
