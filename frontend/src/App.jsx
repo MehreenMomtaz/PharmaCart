@@ -111,6 +111,10 @@ const App = () => {
             element={adminOnly(<AddMedicine />)}
           />
           <Route
+            path="/admin/medicines/:id"
+            element={adminOnly(<MedicineDetailPage />)}
+          />
+          <Route
             path="/admin/medicines/:id/edit"
             element={adminOnly(<AddMedicine />)}
           />
