@@ -215,19 +215,6 @@ const MedicineDetailPage = () => {
                 </div>
               )}
 
-              {/* Quick Dosage Highlight if available */}
-              {currentMedicine.dosage && (
-                <div className="rounded-2xl border border-[#dce7e3] bg-[#f5f8f7] p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-[#073f35] mb-1">
-                    <Clock className="size-4 text-[#159a74]" />
-                    <span>Recommended Dosage</span>
-                  </div>
-                  <p className="text-sm text-[#44554e] font-medium leading-relaxed">
-                    {currentMedicine.dosage}
-                  </p>
-                </div>
-              )}
-
               {/* Quantity Selector */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
